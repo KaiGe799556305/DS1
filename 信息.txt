@@ -1,0 +1,4 @@
+APPID：XXXXX
+# 这里替换成你的飞书APPID
+APPSecret：XXXXX
+# 这里替换成你的飞书APPSecret

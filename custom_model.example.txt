@@ -1,0 +1,9 @@
+# Copy this file to custom_model.txt and fill in your own model service.
+# Keep custom_model.txt local only. Do not commit real API keys.
+
+CUSTOM_BASE_URL=https://your-model-service.example.com/v1
+CUSTOM_API_KEY=your_api_key_here
+CUSTOM_MODEL=your_model_name_here
+
+# Set to false if your OpenAI-compatible service does not support response_format.
+CUSTOM_RESPONSE_FORMAT=json

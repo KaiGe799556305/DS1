@@ -1,0 +1,1966 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小红书达人调研 + 商单脚本生成助手</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --panel: rgba(255, 255, 255, 0.86);
+        --card: #ffffff;
+        --text: #172033;
+        --muted: #667085;
+        --line: rgba(23, 32, 51, 0.1);
+        --brand: #5b6cff;
+        --brand-2: #7c8cff;
+        --green: #16a34a;
+        --amber: #d97706;
+        --red: #dc2626;
+        --shadow: 0 24px 80px rgba(36, 49, 91, 0.12);
+        --radius: 18px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: radial-gradient(circle at top left, #eef3ff 0%, #f5f7fb 38%, #eef1f7 100%); color: var(--text); font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+      a { color: inherit; text-decoration: none; }
+      button, input, textarea { font: inherit; }
+      input, textarea { min-width: 0; }
+      textarea { resize: vertical; }
+      .shell { min-height: 100vh; }
+      .topbar {
+        position: sticky; top: 0; z-index: 10;
+        backdrop-filter: blur(18px);
+        background: rgba(245, 247, 251, 0.72);
+        border-bottom: 1px solid rgba(23,32,51,.06);
+      }
+      .topbar-inner {
+        max-width: 1400px; margin: 0 auto; padding: 18px 24px;
+        display: flex; align-items: center; gap: 16px; justify-content: space-between;
+      }
+      .brand { display:flex; align-items:center; gap: 12px; min-width: 0; }
+      .brand-mark {
+        width: 42px; height: 42px; border-radius: 14px;
+        background: linear-gradient(135deg, var(--brand), #9aa6ff);
+        box-shadow: 0 10px 24px rgba(91,108,255,.28);
+      }
+      .brand-title { font-weight: 800; letter-spacing: 0; font-size: 17px; line-height: 1.2; }
+      .brand-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+      .top-actions { position: relative; display:flex; align-items:center; gap: 10px; }
+      .history-toggle {
+        border: 1px solid rgba(91,108,255,.18);
+        background: rgba(255,255,255,.9);
+        color: #3651db;
+        border-radius: 999px;
+        padding: 11px 16px;
+        font-weight: 800;
+        cursor: pointer;
+        white-space: nowrap;
+        box-shadow: 0 12px 30px rgba(36,49,91,.05);
+      }
+      .history-popover {
+        position: absolute;
+        top: calc(100% + 14px);
+        left: 0;
+        width: min(520px, calc(100vw - 48px));
+        max-height: 70vh;
+        overflow: auto;
+        background: rgba(255,255,255,.98);
+        border: 1px solid rgba(23,32,51,.1);
+        border-radius: 20px;
+        box-shadow: 0 24px 80px rgba(36,49,91,.18);
+        padding: 14px;
+        display: none;
+      }
+      .history-popover.open { display: block; }
+      .history-popover-head { display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-bottom: 10px; }
+      .history-popover-head h2 { margin:0; font-size:16px; }
+      .searchbar {
+        flex: 1; max-width: 780px; display: flex; align-items: center; gap: 12px;
+        background: rgba(255,255,255,.9); border: 1px solid rgba(91,108,255,.15);
+        border-radius: 999px; padding: 12px 16px; box-shadow: 0 12px 30px rgba(36,49,91,.05);
+      }
+      .searchbar input {
+        border: none; outline: none; width: 100%; background: transparent; color: var(--text);
+      }
+      .searchbar button {
+        border: none; background: var(--brand); color: white; border-radius: 999px;
+        padding: 10px 18px; font-weight: 700; cursor: pointer;
+      }
+      .wrap { max-width: 1400px; margin: 0 auto; padding: 24px; }
+      .hero {
+        display: grid; grid-template-columns: 360px 1fr; gap: 20px; align-items: start;
+      }
+      .panel {
+        background: var(--panel); border: 1px solid rgba(255,255,255,.9); border-radius: 24px; box-shadow: var(--shadow);
+      }
+      .side {
+        padding: 22px; position: sticky; top: 92px;
+      }
+      .side h1 { margin: 0 0 10px; font-size: 28px; line-height: 1.1; }
+      .side p { margin: 0; color: var(--muted); line-height: 1.7; font-size: 14px; }
+      .pillrow { display:flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+      .pill {
+        border: 1px solid rgba(91,108,255,.14); color: #4555d8; background: #eef1ff;
+        border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 700;
+      }
+      .mini-card {
+        margin-top: 16px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.78);
+        border: 1px solid rgba(23,32,51,.08);
+      }
+      .mini-card .k { font-size: 12px; color: var(--muted); }
+      .mini-card .v { font-size: 20px; font-weight: 800; margin-top: 6px; }
+      .actions { display:flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+      .btn {
+        border: none; border-radius: 14px; padding: 11px 14px; font-weight: 700; cursor: pointer;
+      }
+      .btn-primary { background: var(--brand); color: white; }
+      .btn-ghost { background: white; color: var(--text); border: 1px solid rgba(23,32,51,.08); }
+      .main { display: grid; gap: 18px; }
+      .stats { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+      .stat { background: rgba(255,255,255,.82); border: 1px solid rgba(23,32,51,.08); border-radius: 20px; padding: 18px; }
+      .stat .label { font-size: 12px; color: var(--muted); }
+      .stat .value { font-size: 28px; font-weight: 900; margin-top: 8px; }
+      .stat .desc { color: var(--muted); font-size: 13px; margin-top: 6px; }
+      .grid-2 { display:grid; grid-template-columns: 1.18fr .82fr; gap: 18px; }
+      .section { padding: 20px; }
+      .section h2 { margin: 0 0 14px; font-size: 18px; }
+      .section-head { display:flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 14px; }
+      .tag { font-size: 12px; color: #3651db; background: #edf1ff; border-radius: 999px; padding: 6px 10px; font-weight: 700; }
+      .creator {
+        padding: 14px; border-radius: 18px; border: 1px solid rgba(23,32,51,.08); background: rgba(255,255,255,.88);
+        display:grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; margin-bottom: 12px;
+      }
+      .avatar { width:56px; height:56px; border-radius: 18px; background: linear-gradient(135deg, #8a99ff, #c1cbff); }
+      .creator h3 { margin: 0; font-size: 15px; }
+      .creator p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .score {
+        padding: 10px 12px; border-radius: 14px; background: #eefaf1; color: var(--green); font-weight: 900;
+      }
+      .chipset { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+      .chip { font-size: 12px; border-radius: 999px; padding: 6px 10px; background: #f3f5f9; color: #475467; }
+      .prompt-box, .code-box {
+        background: #0f172a; color: #e5edf9; border-radius: 20px; padding: 18px; overflow: auto;
+        border: 1px solid rgba(255,255,255,.08);
+      }
+      .prompt-box pre, .code-box pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.7; }
+      .tabs { display:flex; gap: 8px; flex-wrap: wrap; }
+      .tab { padding: 10px 13px; border-radius: 999px; border: 1px solid rgba(23,32,51,.08); background: white; cursor: pointer; font-weight: 700; font-size: 13px; }
+      .tab.active { background: var(--brand); color: white; border-color: transparent; }
+      .tab-panel { display: none; }
+      .tab-panel.active { display: block; }
+      .timeline { display:grid; gap: 10px; }
+      .step { display:grid; grid-template-columns: 52px 1fr; gap: 14px; align-items:start; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.88); border: 1px solid rgba(23,32,51,.08); }
+      .step .n {
+        width: 52px; height: 52px; border-radius: 16px; display:grid; place-items:center;
+        background: linear-gradient(135deg, #eef1ff, #dfe6ff); font-size: 18px; font-weight: 900; color: #334155;
+      }
+      .step h4 { margin: 0 0 6px; font-size: 14px; }
+      .step p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+      .footerlink { display:inline-flex; align-items:center; gap: 8px; color: #3f51d8; font-weight: 700; }
+      .analysis-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+      .analysis-card {
+        background: rgba(255,255,255,.88); border: 1px solid rgba(23,32,51,.08);
+        border-radius: 20px; overflow: hidden;
+      }
+      .thumb {
+        min-height: 180px; background: linear-gradient(135deg, #dfe6ff, #f7f8fb);
+        position: relative; overflow: hidden;
+      }
+      .thumb img { width: 100%; height: 100%; min-height: 180px; display:block; object-fit: cover; }
+      .thumb::after {
+        content: ""; position:absolute; inset:0;
+        background: linear-gradient(180deg, rgba(15,23,42,0) 45%, rgba(15,23,42,.42) 100%);
+      }
+      .thumb-label {
+        position:absolute; left: 14px; bottom: 12px; z-index: 1;
+        color: white; font-weight: 900; text-shadow: 0 2px 12px rgba(0,0,0,.28);
+      }
+      .analysis-body { padding: 16px; }
+      .analysis-body h3 { margin: 0 0 8px; font-size: 16px; }
+      .analysis-body p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+      .metrics { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+      .metric { padding: 10px; border-radius: 14px; background: #f4f6fb; }
+      .metric .k { color: var(--muted); font-size: 11px; }
+      .metric .v { margin-top: 5px; font-weight: 900; font-size: 14px; }
+      .frame-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+      .frame {
+        display:grid; grid-template-columns: 116px 1fr; gap: 12px; align-items: stretch;
+        background: rgba(255,255,255,.88); border: 1px solid rgba(23,32,51,.08);
+        border-radius: 18px; overflow: hidden;
+      }
+      .frame img { width:116px; height: 132px; object-fit: cover; }
+      .frame .body { padding: 12px 12px 12px 0; }
+      .frame h4 { margin: 0 0 6px; font-size: 14px; }
+      .frame p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+      .text-frame {
+        display: block;
+        min-height: 0;
+      }
+      .text-frame .body { padding: 14px; }
+      .text-frame h4 { font-size: 15px; line-height: 1.45; }
+      .text-frame p { font-size: 13px; line-height: 1.7; }
+      .storyboard-list { display:grid; gap: 12px; margin-top: 14px; }
+      .story-shot {
+        display:grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 16px;
+        padding: 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(23,32,51,.08);
+        background: rgba(255,255,255,.92);
+      }
+      .story-shot img { width: 150px; height: 200px; object-fit: cover; border-radius: 14px; background:#eef1ff; }
+      .story-shot.no-image { grid-template-columns: 1fr; }
+      .story-shot-head { display:flex; gap: 8px; align-items:center; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+      .story-shot-no { font-weight: 900; color: #344054; }
+      .story-shot-title { margin: 9px 0 8px; font-size: 17px; line-height: 1.45; }
+      .story-tags { display:flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+      .story-tag { padding: 4px 8px; border-radius: 8px; background:#f3f5f9; color:#667085; font-size:12px; font-weight:700; }
+      .story-detail-grid { display:grid; grid-template-columns: 1fr; gap: 7px; }
+      .story-detail { color: var(--muted); font-size: 13px; line-height: 1.65; }
+      .story-detail strong { color:#667085; display:inline-block; min-width: 72px; margin-right: 8px; }
+      .story-reference { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background:#fff8e7; color:#7a560d; line-height:1.65; font-size:13px; }
+      .story-group { display:grid; gap: 12px; }
+      .story-group + .story-group { margin-top: 18px; }
+      .story-group-title { display:flex; justify-content:space-between; align-items:center; gap:10px; color:#344054; font-size:14px; font-weight:900; }
+      .story-group-title span { color: var(--muted); font-size:12px; font-weight:700; }
+      .result-head { display:flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+      .result-id { font-size: 12px; color: var(--muted); }
+      .status {
+        border-radius: 999px; background: #ecfdf3; color: var(--green); padding: 7px 11px; font-weight: 800; font-size: 12px;
+      }
+      .summary {
+        display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+      }
+      .summary .box { background: rgba(255,255,255,.88); border: 1px solid rgba(23,32,51,.08); border-radius: 18px; padding: 14px; }
+      .summary .box .k { color: var(--muted); font-size: 12px; }
+      .summary .box .v { margin-top: 7px; font-weight: 900; font-size: 16px; line-height: 1.4; }
+      .hint {
+        margin-top: 10px; padding: 14px; border-left: 4px solid var(--amber); background: #fff8e7; border-radius: 14px; color: #855f12;
+      }
+      .transcript-panel {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 14px;
+        align-items: stretch;
+      }
+      .transcript-text {
+        max-height: 260px;
+        overflow: auto;
+        padding: 16px 18px;
+        border-radius: 16px;
+        border: 1px solid rgba(23,32,51,.08);
+        background: #fffaf0;
+        color: #6f4d08;
+        line-height: 1.85;
+        font-size: 14px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .transcript-meta {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+      .transcript-stat {
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(255,255,255,.9);
+        border: 1px solid rgba(23,32,51,.08);
+      }
+      .transcript-stat .k { color: var(--muted); font-size: 12px; }
+      .transcript-stat .v { margin-top: 6px; font-weight: 900; font-size: 18px; }
+      .transcript-segments {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .transcript-toggle-row {
+        margin-top: 14px;
+        display: flex;
+        justify-content: flex-start;
+      }
+      .transcript-collapsible {
+        display: none;
+      }
+      .transcript-collapsible.open {
+        display: block;
+      }
+      .segment-card {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(23,32,51,.08);
+        background: rgba(255,255,255,.92);
+      }
+      .segment-time {
+        color: #344054;
+        font-weight: 900;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .segment-text {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.65;
+      }
+      .video-preview {
+        width: 100%;
+        max-height: 520px;
+        background: #0f172a;
+        border-radius: 18px;
+        display: block;
+      }
+      .report-stack { display: grid; gap: 18px; margin-top: 18px; }
+      .report-card {
+        background: rgba(255,255,255,.9);
+        border: 1px solid rgba(23,32,51,.08);
+        border-radius: 18px;
+        padding: 18px;
+      }
+      .report-media { display:grid; grid-template-columns: 170px 1fr; gap: 18px; align-items:start; }
+      .report-media img { width:170px; height:220px; object-fit:cover; border-radius:16px; background:#eef1ff; }
+      .field-list { display:grid; gap: 14px; }
+      .field .label { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+      .field .value { line-height: 1.75; font-size: 15px; }
+      .brief-input {
+        width: 100%;
+        border: 1px solid rgba(23,32,51,.1);
+        border-radius: 12px;
+        background: rgba(255,255,255,.9);
+        color: var(--text);
+        padding: 10px 12px;
+        outline: none;
+        line-height: 1.5;
+      }
+      textarea.brief-input { min-height: 76px; }
+      .brief-input:focus {
+        border-color: rgba(91,108,255,.55);
+        box-shadow: 0 0 0 3px rgba(91,108,255,.12);
+      }
+      .option-row {
+        margin-top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(23,32,51,.08);
+        background: rgba(255,255,255,.78);
+      }
+      .option-row strong { display:block; font-size: 14px; }
+      .option-row span { display:block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .segmented {
+        display: inline-grid;
+        grid-template-columns: repeat(2, minmax(104px, 1fr));
+        gap: 4px;
+        padding: 4px;
+        border-radius: 12px;
+        border: 1px solid rgba(23,32,51,.08);
+        background: #f4f6fb;
+        flex: 0 0 auto;
+      }
+      .segmented label {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 34px;
+        padding: 0 10px;
+        border-radius: 9px;
+        color: #667085;
+        font-weight: 800;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .segmented input { position: absolute; opacity: 0; pointer-events: none; }
+      .segmented label:has(input:checked) {
+        background: white;
+        color: var(--brand);
+        box-shadow: 0 2px 8px rgba(36,49,91,.1);
+      }
+      .switch { position: relative; display:inline-flex; align-items:center; width: 52px; height: 30px; flex: 0 0 auto; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider {
+        position: absolute; inset: 0; cursor: pointer;
+        background: #d0d5dd; border-radius: 999px;
+        transition: .18s ease;
+      }
+      .slider::before {
+        content: ""; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px;
+        border-radius: 50%; background: white; box-shadow: 0 2px 8px rgba(36,49,91,.18);
+        transition: .18s ease;
+      }
+      .switch input:checked + .slider { background: var(--brand); }
+      .switch input:checked + .slider::before { transform: translateX(22px); }
+      .yellow-tag { display:inline-flex; border-radius:999px; background:#ffe100; color:#172033; font-size:12px; font-weight:900; padding:4px 9px; margin-right:6px; }
+      .check-row { display:grid; grid-template-columns: 22px 1fr; gap: 8px; align-items:start; margin-top: 8px; color: var(--muted); line-height:1.65; }
+      .check-icon { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; background:#12b76a; color:white; font-size:12px; font-weight:900; }
+      .check-icon.fail { background:#d0d5dd; }
+      .numbered-item { display:grid; grid-template-columns: 34px 1fr; gap: 10px; padding:14px 0; border-bottom:1px solid rgba(23,32,51,.08); }
+      .numbered-item:last-child { border-bottom:0; }
+      .quote-block { border-left:3px solid #ffe100; padding-left:14px; color:#475467; line-height:1.8; margin:8px 0; }
+      .quote-line { border-left:3px solid #ffe100; padding: 2px 0 2px 14px; color:#172033; font-size:17px; font-weight:800; line-height:1.75; margin:8px 0; }
+      .quote-analysis { margin: 6px 0 14px 17px; padding: 10px 12px; border-radius: 12px; background:#f4f6fb; color:#667085; line-height:1.7; font-size:14px; }
+      .quote-analysis .label { display:block; color:#98a2b3; font-size:12px; margin-bottom:3px; }
+      .history-list { display:grid; gap: 10px; }
+      .history-list-wide {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      }
+      .history-item {
+        width: 100%;
+        border: 1px solid rgba(23,32,51,.08);
+        border-radius: 16px;
+        background: rgba(255,255,255,.88);
+        padding: 12px;
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 12px;
+        text-align: left;
+        cursor: pointer;
+        color: var(--text);
+      }
+      .history-item:hover { border-color: rgba(91,108,255,.35); box-shadow: 0 10px 24px rgba(36,49,91,.08); }
+      .history-item.running { border-color: rgba(91,108,255,.28); background: #f6f7ff; }
+      .history-thumb { width: 64px; height: 84px; border-radius: 12px; object-fit: cover; background: #eef1ff; }
+      .history-thumb.pending { display:grid; place-items:center; color:#5b6cff; font-weight:900; }
+      .history-title { font-weight: 800; line-height: 1.35; }
+      .history-meta { color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 5px; }
+      .history-desc { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 7px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      @media (max-width: 1100px) {
+        .hero, .grid-2 { grid-template-columns: 1fr; }
+        .analysis-grid, .frame-grid { grid-template-columns: 1fr; }
+        .transcript-panel { grid-template-columns: 1fr; }
+        .transcript-meta { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .side { position: static; }
+        .stats, .summary { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      }
+      @media (max-width: 720px) {
+        .topbar-inner, .wrap { padding-left: 14px; padding-right: 14px; }
+        .stats, .summary { grid-template-columns: 1fr; }
+        .creator { grid-template-columns: 48px 1fr; }
+        .frame { grid-template-columns: 96px 1fr; }
+        .frame img { width: 96px; height: 124px; }
+        .story-shot { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; }
+        .story-shot img { width: 96px; height: 128px; }
+        .story-detail-grid { grid-template-columns: 1fr; }
+        .transcript-meta, .transcript-segments { grid-template-columns: 1fr; }
+        .segment-card { grid-template-columns: 1fr; }
+        .score { grid-column: 1 / -1; width: fit-content; }
+        .searchbar { display:none; }
+        .top-actions { margin-left:auto; }
+        .history-toggle { padding: 10px 13px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="shell"></div>
+    <script>
+      const DATA = {
+        id: "9423b9da6e66",
+        sourceLink: "https://xhslink.com/o/example",
+        title: "轻醒酸奶商单脚本分析",
+        status: "已完成",
+        score: 94,
+        matchRate: "已完成",
+        workflow: "5 步工作流",
+        feishuUrl: "https://feishu.cn/docx/TJZtdKLAmoMSBSxjnXvc892ynXg",
+        creators: [
+          {
+            name: "脸圆的聪花",
+            role: "主线 1 / 自律健身",
+            note: "清晨运动、自律 vlog、女性健身日常，适合早餐和运动后补给。",
+            chips: ["早起运动", "自律生活", "早餐场景"]
+          },
+          {
+            name: "小张今晚不想熬夜",
+            role: "主线 2 / 上班族日常",
+            note: "南京国企打工人视角，适合午休、通勤、办公室轻负担补给。",
+            chips: ["午休运动", "打工人", "城市日常"]
+          },
+          {
+            name: "撸铁的面包",
+            role: "备选 / 成熟健康",
+            note: "40+ 状态管理、运动后恢复、日常穿搭美食，适合更成熟的健康表达。",
+            chips: ["40+", "状态管理", "运动后"]
+          }
+        ],
+        stats: [
+          { label: "示例达人匹配", value: "已完成", desc: "依据 report 和 references 调研结论" },
+          { label: "示例风控状态", value: "通过", desc: "无减肥、治疗、降糖承诺" },
+          { label: "示例飞书文档", value: "已写入", desc: "最终版文档已创建并写入" },
+          { label: "示例输出形态", value: "脚本+分镜", desc: "可作为达人拍摄稿参考" }
+        ],
+        summary: [
+          { k: "主线达人", v: "自律健身 + 上班族日常" },
+          { k: "核心卖点", v: "0 蔗糖高蛋白，轻负担补给" },
+          { k: "交付结果", v: "飞书文档已写入" }
+        ],
+        prompt: `你是一个面向 MCN 商单的内容策划 Agent。你的任务不是生成泛文案，而是把 brief 拆成可拍摄、可交付、可质检的短视频方案。\n\n输入：品牌、产品、卖点、人群、平台、限制、达人资料。\n任务：1. brief 解析 2. 达人匹配 3. 脚本生成 4. 风险质检 5. 飞书写入。\n约束：不能承诺减肥、治疗、降糖；不能夸大效果；语言要像真实达人。\n输出：达人选择、脚本、分镜、质检结果、飞书可写入正文。`,
+        videoAnalysis: {
+          coverTitle: {
+            image: "/references/creator-1.jpg",
+            title: "自律 vlog 视觉钩子强，适合承接轻负担早餐",
+            desc: "封面使用清晨窗边、运动前状态和大字时间点，能在 1 秒内传达早起、自律、运动的内容预期。标题建议继续沿用自律 vlog + 具体状态的结构，再自然加入早餐补给。",
+            metrics: [
+              ["封面识别", "强"],
+              ["标题场景", "清晨运动"],
+              ["商业植入", "自然"]
+            ]
+          },
+          topic: {
+            image: "/references/creator-2.jpg",
+            title: "选题从打工日常到运动后补给切入",
+            desc: "第二位达人适合上班族日常，选题不要只写酸奶，而是把产品放进上班前、午休运动、下午茶三个连续切面里，让用户先代入生活节奏。",
+            metrics: [
+              ["目标人群", "22-35 城市女性"],
+              ["核心情绪", "忙但想吃得轻松"],
+              ["内容类型", "日常 vlog"]
+            ]
+          },
+          product: {
+            image: "/references/creator-3.jpg",
+            title: "选品表达聚焦 0 蔗糖、高蛋白、希腊酸奶",
+            desc: "卖点不能写成减肥或降糖功效，要用口味选择、搭配方式、场景补给来讲。原味搭麦片，蓝莓做早餐，黄桃做下午茶，能形成明确消费场景。",
+            metrics: [
+              ["主卖点", "高蛋白"],
+              ["合规边界", "不承诺功效"],
+              ["使用场景", "早餐/运动后/下午茶"]
+            ]
+          },
+          copy: {
+            image: "/references/creator-2.jpg",
+            title: "文案要像生活记录，不像广告口播",
+            desc: "建议开头先说真实场景：运动完或下午忙到一半想找点吃的，再出现产品。口播中减少绝对化词，保留个人体验，如对我来说、我会这样搭。",
+            metrics: [
+              ["钩子", "3 秒内进入场景"],
+              ["语气", "第一人称"],
+              ["CTA", "轻引导"]
+            ]
+          }
+        },
+        script: `标题：打工人的一天，靠轻醒把补给安排好
+
+开头钩子：每次运动完或者下午忙到一半，我都很想找点吃的。最近我会把轻醒酸奶放进包里，想吃的时候就顺手拿出来。
+
+口播文案：
+0:00-0:07 Hello 大家，假期结束以后又回到打工节奏，早上赶时间、午休想动一动、下午又容易想吃点东西。
+0:07-0:15 所以我最近会给自己准备一盒轻醒希腊酸奶。原味我喜欢放早餐里，配燕麦和水果，开盖就能吃。
+0:15-0:24 它是 0 蔗糖、高蛋白的配方，口感比较厚实。对我来说，早上这样搭一下，会比随便买个甜点更顺手。
+0:24-0:34 中午约朋友打球，换上运动服出门。活动完先休息一下，喝点水，再拿出蓝莓味轻醒。
+0:34-0:45 蓝莓味很适合运动后这种时刻，酸甜感比较清爽，舀起来能看到绵密的质地，吃起来不像很重的甜品。
+0:45-0:56 如果下午在工位上有点饿，我会换黄桃味。它更像一个小小的下午茶，放在电脑旁边，边忙边吃两口。
+0:56-1:08 我喜欢它的点不是“多神奇”，而是能放进真实的一天里：早餐、运动后、下午茶，每个场景都不突兀。
+1:08-1:15 如果你也想给日常准备一个不折腾的轻食补给，可以从自己最常饿的那个时段试试看。
+
+CTA：评论区告诉我，你最想把轻醒放在哪个时段：早餐、运动后，还是下午茶？
+
+风险提醒：不说降糖、减肥、确定性效果或营养机理，只表达个人场景、口感和搭配习惯。`,
+        storyboard: [
+          ["1", "整理通勤包，把轻醒放进包侧袋", "假期结束以后又回到打工节奏", "通勤包、镜子、轻醒酸奶", "7s", "/references/creator-2.jpg"],
+          ["2", "厨房自然光下，原味轻醒倒入燕麦杯", "原味我喜欢放早餐里，配燕麦和水果", "原味酸奶、燕麦、水果", "8s", "/references/creator-1.jpg"],
+          ["3", "产品近景，勺子舀起绵密质地", "0 蔗糖、高蛋白的希腊酸奶", "酸奶杯、木勺、浅色桌面", "8s", "/references/creator-3.jpg"],
+          ["4", "工位处理工作，旁边放着酸奶和水杯", "早上这样搭一下，会比随便买个甜点更顺手", "电脑、耳机、水杯", "9s", "/references/creator-2.jpg"],
+          ["5", "中午换运动服出门，走过树荫", "中午约朋友打球，换上运动服出门", "运动包、球拍、运动鞋", "9s", "/references/creator-2.jpg"],
+          ["6", "运动后坐在场边休息，打开蓝莓味", "活动完先休息一下，再拿出蓝莓味轻醒", "蓝莓味酸奶、水壶、长椅", "10s", "/references/creator-3.jpg"],
+          ["7", "蓝莓味酸奶特写，人物轻松吃一口", "酸甜感比较清爽，吃起来不像很重的甜品", "蓝莓味包装、勺子", "10s", "/references/creator-1.jpg"],
+          ["8", "下午工位，黄桃味酸奶放在电脑旁", "如果下午在工位上有点饿，我会换黄桃味", "黄桃味酸奶、电脑、便签", "10s", "/references/creator-2.jpg"],
+          ["9", "三种口味并排，字幕标注使用场景", "早餐、运动后、下午茶，每个场景都不突兀", "原味、蓝莓、黄桃", "8s", "/references/creator-3.jpg"],
+          ["10", "收尾正脸，女主把酸奶放进包里", "你最想把轻醒放在哪个时段？", "通勤包、酸奶、干净背景", "6s", "/references/creator-1.jpg"]
+        ]
+      };
+
+      const app = document.getElementById("app");
+      let historyOutsideClickBound = false;
+
+      function pathMode() {
+        const path = location.pathname.replace(/\/+$/, "");
+        if (path === "" || path === "/") return "home";
+        if (path.startsWith("/analyze/")) return "result";
+        if (path === "/analyze") return "home";
+        return "home";
+      }
+
+      function navigate(path) {
+        history.pushState({}, "", path);
+        render();
+      }
+
+      function header() {
+        return `
+          <div class="topbar">
+            <div class="topbar-inner">
+              <div class="brand">
+                <div class="brand-mark"></div>
+                <div>
+                  <div class="brand-title">小红书达人调研 + 商单脚本生成助手</div>
+                  <div class="brand-sub">从链接分析到脚本分镜，再到飞书交付</div>
+                </div>
+              </div>
+              <div class="top-actions">
+                <button class="history-toggle" id="historyToggle" type="button">历史记录</button>
+                <div class="history-popover" id="historyPopover">
+                  <div class="history-popover-head">
+                    <h2>历史记录</h2>
+                    <span class="tag">最近结果</span>
+                  </div>
+                  <div id="historyList" class="history-list">
+                    <div class="hint" style="margin:0;">正在读取历史记录...</div>
+                  </div>
+                </div>
+              </div>
+              <div class="searchbar">
+                <input id="searchInput" placeholder="粘贴小红书链接后回车，例如 xhslink.com/o/xxxx" />
+                <button id="searchBtn">分析</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function homePage() {
+        return `
+          ${header()}
+          <div class="wrap">
+            <section class="panel section" style="margin-bottom:18px;">
+              <div class="section-head">
+                <h2>商单 Brief</h2>
+                <span class="tag">用于风格模仿与仿写</span>
+              </div>
+              <div class="grid-2" style="margin-top:14px;">
+                <div class="field-list">
+                  <label class="field"><div class="label">品牌</div><input class="brief-input" id="briefBrand" placeholder="例如：轻食酸奶「轻醒」" /></label>
+                  <label class="field"><div class="label">产品</div><input class="brief-input" id="briefProduct" placeholder="例如：0 蔗糖高蛋白希腊酸奶，口味包含原味、蓝莓、黄桃" /></label>
+                  <label class="field"><div class="label">主要卖点</div><textarea class="brief-input" id="briefSellingPoints" placeholder="例如：高蛋白、饱腹感、低负担、适合早餐、运动后、下午茶"></textarea></label>
+                </div>
+                <div class="field-list">
+                  <label class="field"><div class="label">目标人群</div><textarea class="brief-input" id="briefAudience" placeholder="例如：22-35 岁城市女性，关注健身、控糖、轻食和上班族效率生活"></textarea></label>
+                  <label class="field"><div class="label">投放平台</div><input class="brief-input" id="briefPlatform" placeholder="例如：小红书短视频" /></label>
+                  <label class="field"><div class="label">限制/合规要求</div><textarea class="brief-input" id="briefConstraints" placeholder="例如：自然种草，不要硬广；不能承诺减肥、治疗、降糖；避免夸大效果；脚本需要适合真实达人拍摄"></textarea></label>
+                </div>
+              </div>
+              <div class="option-row">
+                <div>
+                  <strong>开启 AI 选帧</strong>
+                  <span>使用视觉模型挑选封面、选题、产品、文案和分镜关键帧；关闭后使用本地规则选帧，更快但准确度较低。</span>
+                </div>
+                <label class="switch" title="开启 AI 选帧">
+                  <input id="aiFrameSelect" type="checkbox" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="option-row">
+                <div>
+                  <strong>分析模式</strong>
+                  <span>稳定模式适合大多数分析，图片和分镜更容易对应；深度模式会参考完整视频节奏，但耗时更长。</span>
+                </div>
+                <div class="segmented" role="radiogroup" aria-label="分析模式">
+                  <label><input type="radio" name="analysisMode" value="frames" checked />稳定模式</label>
+                  <label><input type="radio" name="analysisMode" value="video" />深度模式</label>
+                </div>
+              </div>
+              <div class="option-row">
+                <div>
+                  <strong>仿写视频目标时长</strong>
+                  <span>控制商单仿写脚本和分镜的总时长，建议小红书短视频设置为 60-90 秒。</span>
+                </div>
+                <input class="brief-input" id="targetDuration" type="number" min="30" max="180" step="5" value="75" style="max-width:140px;" />
+              </div>
+              <div class="option-row">
+                <div>
+                  <strong>仿写镜头数量</strong>
+                  <span>系统会根据目标时长和原视频可借鉴镜头自动推荐；原视频仍会尽量拆出全部代表性关键帧。</span>
+                </div>
+                <span class="tag">自动推荐</span>
+              </div>
+              <div class="hint" style="margin-top:12px;">先填 brief，再在顶部粘贴参考视频链接。系统会先拆解参考视频，再按这个 brief 做内容风格模仿和仿写。</div>
+            </section>
+            <div class="hero">
+              <aside class="panel side">
+                <h1>轻醒 brief 示例结果页</h1>
+                <p>
+                  当前展示的是本次测试题的示例交付结果。输入新的 brief 和参考链接后，可重新生成达人选择、脚本、分镜、风控和飞书文档。
+                </p>
+                <div class="pillrow">
+                  <span class="pill">达人调研</span>
+                  <span class="pill">脚本生成</span>
+                  <span class="pill">分镜设计</span>
+                  <span class="pill">飞书写入</span>
+                </div>
+                <div class="mini-card">
+                  <div class="k">当前示例结果</div>
+                  <div class="v">/analyze/${DATA.id}</div>
+                </div>
+                <div class="actions">
+                  <button class="btn btn-primary" id="goDemo">打开示例结果</button>
+                  <button class="btn btn-ghost" id="openFeishu">查看飞书文档</button>
+                </div>
+              </aside>
+              <main class="main">
+                <section class="stats">
+                  ${DATA.stats.map(s => `
+                    <div class="stat">
+                      <div class="label">${s.label}</div>
+                      <div class="value">${s.value}</div>
+                      <div class="desc">${s.desc}</div>
+                    </div>
+                  `).join("")}
+                </section>
+                <section class="panel section">
+                  <div class="section-head">
+                    <h2>快速预览</h2>
+                    <span class="tag">适合 MCN 商单交付</span>
+                  </div>
+                  <div class="summary">
+                    ${DATA.summary.map(i => `
+                      <div class="box">
+                        <div class="k">${i.k}</div>
+                        <div class="v">${i.v}</div>
+                      </div>
+                    `).join("")}
+                  </div>
+                  <div class="hint">当前展示为轻醒 brief 的最终交付结果，包含报告、Prompt、Skill、脚本、分镜、质检和飞书写入。</div>
+                </section>
+                <section class="grid-2">
+                  <div class="panel section">
+                    <div class="section-head">
+                      <h2>主线达人</h2>
+                      <span class="tag">2 位主线 + 1 位备选</span>
+                    </div>
+                    ${DATA.creators.map(c => `
+                      <div class="creator">
+                        <div class="avatar"></div>
+                        <div>
+                          <h3>${c.name}</h3>
+                          <p>${c.role} · ${c.note}</p>
+                          <div class="chipset">${c.chips.map(ch => `<span class="chip">${ch}</span>`).join("")}</div>
+                        </div>
+                        <div class="score">匹配</div>
+                      </div>
+                    `).join("")}
+                  </div>
+                  <div class="panel section">
+                    <div class="section-head">
+                      <h2>流程</h2>
+                      <span class="tag">${DATA.workflow}</span>
+                    </div>
+                    <div class="timeline">
+                      <div class="step"><div class="n">1</div><div><h4>Brief 解析</h4><p>提取品牌、卖点、平台、人群和禁区，先锁定能说什么、不能说什么。</p></div></div>
+                      <div class="step"><div class="n">2</div><div><h4>达人匹配</h4><p>按人设、内容场景、表达方式和品牌适配度筛选主线与备选达人。</p></div></div>
+                      <div class="step"><div class="n">3</div><div><h4>脚本生成</h4><p>输出标题、开头钩子、口播、植入点、CTA，适合真实拍摄。</p></div></div>
+                      <div class="step"><div class="n">4</div><div><h4>风控质检</h4><p>检查减肥、治疗、降糖等敏感表达，先把风险挡掉。</p></div></div>
+                      <div class="step"><div class="n">5</div><div><h4>飞书交付</h4><p>脚本和分镜写入飞书文档，直接形成可交付成果。</p></div></div>
+                    </div>
+                  </div>
+                </section>
+              </main>
+            </div>
+          </div>
+        `;
+      }
+
+      function resultPage(id) {
+        return `
+          ${header()}
+          <div class="wrap">
+            <div class="panel section">
+              <div class="result-head">
+                <div>
+                  <div class="result-id">分析 ID · ${id}</div>
+                  <h1 style="margin:8px 0 0;font-size:30px;line-height:1.15;">${DATA.title}</h1>
+                </div>
+                <div class="status">${DATA.status}</div>
+              </div>
+              <div class="summary" style="margin-top:18px;">
+                ${DATA.summary.map(i => `
+                  <div class="box">
+                    <div class="k">${i.k}</div>
+                    <div class="v">${i.v}</div>
+                  </div>
+                `).join("")}
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="btn btn-primary" id="openFeishu2">打开飞书文档</button>
+                <button class="btn btn-ghost" id="backHome">返回输入页</button>
+              </div>
+            </div>
+
+            <div class="stats" style="margin-top:18px;">
+              ${DATA.stats.map(s => `
+                <div class="stat">
+                  <div class="label">${s.label}</div>
+                  <div class="value">${s.value}</div>
+                  <div class="desc">${s.desc}</div>
+                </div>
+              `).join("")}
+            </div>
+
+            <div class="grid-2" style="margin-top:18px;">
+              <section class="panel section">
+                <div class="section-head">
+                  <h2>达人分析</h2>
+                  <span class="tag">主线 + 备选</span>
+                </div>
+                ${DATA.creators.map(c => `
+                  <div class="creator">
+                    <div class="avatar"></div>
+                    <div>
+                      <h3>${c.name}</h3>
+                      <p>${c.role} · ${c.note}</p>
+                      <div class="chipset">${c.chips.map(ch => `<span class="chip">${ch}</span>`).join("")}</div>
+                    </div>
+                    <div class="score">92</div>
+                  </div>
+                `).join("")}
+              </section>
+
+              <section class="panel section">
+                <div class="section-head">
+                  <h2>合规质检</h2>
+                  <span class="tag" style="background:#ecfdf3;color:#16a34a;">通过</span>
+                </div>
+                <div class="creator" style="grid-template-columns: 1fr;">
+                  <div>
+                    <h3>风险检查结果</h3>
+                    <p>未出现减肥、治疗、降糖等功效承诺；文案以个人体验和使用场景为主；适合达人真实拍摄。</p>
+                    <div class="chipset">
+                      <span class="chip">无功效承诺</span>
+                      <span class="chip">无夸大表达</span>
+                      <span class="chip">适合真实拍摄</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="hint">建议在正式上线前，再让品牌方或法务过一遍最终口播。</div>
+              </section>
+            </div>
+
+            <div class="grid-2" style="margin-top:18px;">
+              <section class="panel section">
+                <div class="section-head">
+                  <h2>视频拆解报告</h2>
+                  <span class="tag">封面 / 选题 / 选品 / 文案 / 分镜</span>
+                </div>
+                <div class="tabs" data-tabs>
+                  <button class="tab active" data-tab="cover">封面&标题</button>
+                  <button class="tab" data-tab="topic">选题分析</button>
+                  <button class="tab" data-tab="product">选品分析</button>
+                  <button class="tab" data-tab="copy">文案分析</button>
+                  <button class="tab" data-tab="storyboard">分镜拆解</button>
+                </div>
+                <div class="tab-panel active" id="tab-cover">
+                  ${analysisCard(DATA.videoAnalysis.coverTitle)}
+                </div>
+                <div class="tab-panel" id="tab-topic">
+                  ${analysisCard(DATA.videoAnalysis.topic)}
+                </div>
+                <div class="tab-panel" id="tab-product">
+                  ${analysisCard(DATA.videoAnalysis.product)}
+                </div>
+                <div class="tab-panel" id="tab-copy">
+                  ${analysisCard(DATA.videoAnalysis.copy)}
+                </div>
+                <div class="tab-panel" id="tab-storyboard">
+                  <div class="frame-grid" style="margin-top:14px;">
+                    ${DATA.storyboard.map(s => `
+                      <div class="frame">
+                        <img src="${s[5]}" alt="分镜 ${s[0]}">
+                        <div class="body">
+                          <h4>镜头 ${s[0]} · ${s[1]}</h4>
+                          <p><strong>字幕/口播：</strong>${s[2]}<br/><strong>道具/场景：</strong>${s[3]}<br/><strong>时长：</strong>${s[4]}</p>
+                        </div>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel section">
+                <div class="section-head">
+                  <h2>飞书交付</h2>
+                  <span class="tag">已写入</span>
+                </div>
+                <div class="creator" style="grid-template-columns: 1fr;">
+                  <div>
+                    <h3>文档链接</h3>
+                    <p><a class="footerlink" href="${DATA.feishuUrl}" target="_blank" rel="noreferrer">${DATA.feishuUrl}</a></p>
+                    <div class="chipset">
+                      <span class="chip">3742 字符</span>
+                      <span class="chip">160 块</span>
+                      <span class="chip">可直接交付</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="hint">这部分已经从“方案”变成“真实写入结果”，适合放在 README 和最终展示页里。</div>
+              </section>
+            </div>
+
+            ${detailedReport}
+
+            ${detailedReport}
+
+            <section class="panel section" style="margin-top:18px;">
+              <div class="section-head">
+                <h2>生成脚本</h2>
+                <span class="tag">60-90 秒可拍摄稿</span>
+              </div>
+              <div class="code-box"><pre>${escapeHtml(DATA.script)}</pre></div>
+            </section>
+          </div>
+        `;
+      }
+
+      function analysisCard(item) {
+        return `
+          <div class="analysis-card" style="margin-top:14px;">
+            <div class="thumb">
+              <img src="${item.image}" alt="${item.module || item.title}">
+              <div class="thumb-label">${item.module || item.title}</div>
+            </div>
+            <div class="analysis-body">
+              <h3>${item.module || item.title}</h3>
+              ${item.module && item.title ? `<p style="font-weight:800;color:#172033;margin-bottom:8px;">${item.title}</p>` : ""}
+              <p>${item.desc}</p>
+              <div class="metrics">
+                ${item.metrics.map(m => `
+                  <div class="metric">
+                    <div class="k">${m[0]}</div>
+                    <div class="v">${m[1]}</div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function metricPairs(metrics) {
+        if (!metrics) return [];
+        if (Array.isArray(metrics)) {
+          return metrics.map((m) => {
+            if (Array.isArray(m)) return m;
+            if (m && typeof m === "object") {
+              return [
+                String(m.k || m.key || m.label || ""),
+                String(m.v || m.value || m.desc || JSON.stringify(m)),
+              ];
+            }
+            return ["", String(m)];
+          });
+        }
+        if (typeof metrics === "object") {
+          return Object.entries(metrics).map(([k, v]) => [String(k), typeof v === "object" ? JSON.stringify(v) : String(v)]);
+        }
+        return [["", String(metrics)]];
+      }
+
+      function listText(value) {
+        if (!value) return "";
+        if (Array.isArray(value)) return value.filter(Boolean).join("、");
+        if (typeof value === "object") return Object.values(value).filter(Boolean).join("、");
+        return String(value);
+      }
+
+      function tagList(tags) {
+        const items = Array.isArray(tags) ? tags : (tags ? [tags] : []);
+        return items.map(t => `<span class="yellow-tag">${escapeHtml(t)}</span>`).join("");
+      }
+
+      function checkLabel(label) {
+        return String(label || "").replace("具体承诺", "看完收益");
+      }
+
+      function renderChecks(checks) {
+        if (!Array.isArray(checks) || !checks.length) return "";
+        return checks.map(item => `
+          <div class="check-row">
+            <span class="check-icon ${item.pass === false ? "fail" : ""}">${item.pass === false ? "×" : "✓"}</span>
+            <div><strong>${escapeHtml(checkLabel(item.label))}</strong>${item.desc ? `：${escapeHtml(item.desc)}` : ""}</div>
+          </div>
+        `).join("");
+      }
+
+      function renderDetailedReport(data) {
+        const a = data.rawAnalysis || data.payload?.analysis || {};
+        const hasDetailed = a.cover_title?.format || a.topic?.target_audience || Array.isArray(a.product?.items) || a.copy?.opening;
+        if (!hasDetailed) return "";
+        const cover = a.cover_title || {};
+        const topic = a.topic || {};
+        const product = a.product || {};
+        const copy = a.copy || {};
+        const coverImage = data.cards?.[0]?.image || "";
+        return `
+          <div class="report-stack">
+            <section class="panel section">
+              <div class="section-head">
+                <h2>封面 & 标题分析</h2>
+                <span class="tag">点击理由</span>
+              </div>
+              <div class="report-card report-media">
+                ${coverImage ? `<img src="${coverImage}" alt="封面分析">` : ""}
+                <div class="field-list">
+                  <div class="field"><div class="label">形式</div><div class="value">${escapeHtml(cover.format || "")}</div></div>
+                  <div class="field"><div class="label">画面亮点</div><div class="value">${escapeHtml(listText(cover.visual_highlights || cover.desc))}</div></div>
+                  <div class="field"><div class="label">封面文字</div><div class="value">${escapeHtml(cover.cover_text || cover.title || "")}</div></div>
+                  <div class="field"><div class="label">封面钩子</div><div class="value">${tagList(cover.hook_tag)}${escapeHtml(cover.hook_analysis || "")}</div></div>
+                  <div class="field"><div class="label">标题原文</div><div class="value">${escapeHtml(cover.original_title || cover.title || "")}</div></div>
+                  <div class="field"><div class="label">标题公式</div><div class="value">${tagList(cover.title_formula)}${escapeHtml(cover.title_formula_desc || "")}</div></div>
+                  <div class="field"><div class="label">三要素检查</div><div class="value">${renderChecks(cover.checks)}</div></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel section">
+              <div class="section-head">
+                <h2>选题分析</h2>
+                <span class="tag">人群 / 痛点 / 迁移</span>
+              </div>
+              <div class="report-card field-list">
+                <div class="field"><div class="label">目标人群</div><div class="value">${escapeHtml(topic.target_audience || topic.title || "")}</div></div>
+                <div class="field"><div class="label">痛点</div><div class="value">${escapeHtml(topic.pain_point || topic.desc || "")}</div></div>
+                <div class="field"><div class="label">切入角度</div><div class="value">${escapeHtml(topic.angle || "")}</div></div>
+                <div class="field"><div class="label">内容标签</div><div class="value">${tagList(topic.tags)}</div></div>
+                ${(topic.migration_references || []).map(ref => `
+                  <div class="quote-block">「${escapeHtml(ref.title || "")}」→ 目标人群：${escapeHtml(ref.audience || "")}，迁移逻辑：${escapeHtml(ref.logic || "")}</div>
+                `).join("")}
+              </div>
+            </section>
+
+            <section class="panel section">
+              <div class="section-head">
+                <h2>选品分析</h2>
+                <span class="tag">产品角色</span>
+              </div>
+              <div class="report-card">
+                ${(product.items || []).map((item, index) => `
+                  <div class="numbered-item">
+                    <div class="label">${String(index + 1).padStart(2, "0")}</div>
+                    <div>
+                      <h3 style="margin:0 0 6px;font-size:16px;">${escapeHtml(item.name || "")}</h3>
+                      ${tagList(item.tag || item.role)}
+                      <p style="margin:8px 0 0;color:var(--muted);line-height:1.7;">${escapeHtml(item.selling_point || "")}</p>
+                    </div>
+                  </div>
+                `).join("")}
+                <div class="field" style="margin-top:14px;"><div class="label">选品逻辑</div><div class="value">${escapeHtml(product.logic || product.desc || "")}</div></div>
+              </div>
+            </section>
+
+            <section class="panel section">
+              <div class="section-head">
+                <h2>文案分析</h2>
+                <span class="tag">结构 / 金句 / 结尾</span>
+              </div>
+              <div class="report-card field-list">
+                <div class="field"><div class="label">开头</div><div class="value">${tagList(copy.opening?.tags)}<div class="quote-block">${escapeHtml(copy.opening?.line || "")}</div>${escapeHtml(copy.opening?.analysis || "")}</div></div>
+                <div class="field"><div class="label">结构</div><div class="value">${(copy.structure || []).map(item => `<div class="check-row"><span class="check-icon">✓</span><div><strong>${escapeHtml(item.time || "")}</strong> ${escapeHtml(item.content || "")}</div></div>`).join("")}</div></div>
+                <div class="field"><div class="label">金句</div><div class="value">${(copy.golden_sentences || []).map(item => `<div class="quote-line">${escapeHtml(item.line || "")}</div>${item.analysis ? `<div class="quote-analysis"><span class="label">解析</span>${escapeHtml(item.analysis || "")}</div>` : ""}`).join("")}</div></div>
+                <div class="field"><div class="label">结尾</div><div class="value"><div class="quote-block">${escapeHtml(copy.ending?.line || "")}</div>${escapeHtml(copy.ending?.analysis || copy.ending?.suggestion || "")}</div></div>
+              </div>
+            </section>
+          </div>
+        `;
+      }
+
+      function normalizeSection(section, fallbackTitle) {
+        if (!section) {
+          return { title: fallbackTitle, desc: "暂无分析", metrics: [] };
+        }
+        if (typeof section === "string") {
+          return { title: fallbackTitle, desc: section, metrics: [] };
+        }
+        return {
+          title: section.title || fallbackTitle,
+          desc: section.desc || section.summary || "",
+          metrics: metricPairs(section.metrics),
+        };
+      }
+
+      function normalizeStoryboard(payload) {
+        const frames = payload.frames || [];
+        const selected = payload.selected_frames || {};
+        const selectedStory = selected.storyboard || [];
+        const metadata = Array.isArray(payload.frame_metadata) ? payload.frame_metadata : [];
+        const metadataByFrame = new Map(metadata.map(item => [item.frame, item]));
+        const analysisShots = Array.isArray(payload.analysis?.storyboard) ? payload.analysis.storyboard : [];
+        const source = analysisShots.length ? analysisShots : selectedStory.map((frame, index) => ({
+          shot: index + 1,
+          visual: "",
+          voice_or_subtitle: "",
+          props_scene: "",
+          duration_sec: "",
+          image: frame,
+        }));
+        return source.map((item, index) => {
+          const shotNumber = Number(item.shot);
+          return {
+          shot: Number.isFinite(shotNumber) && shotNumber > 0 ? shotNumber : index + 1,
+          visual: item.visual || item.title || `镜头 ${index + 1}`,
+          voice_or_subtitle: item.voice_or_subtitle || item.subtitle || item.voice || "",
+          props_scene: item.props_scene || item.scene || "",
+          duration_sec: item.duration_sec || item.duration || "",
+          time_range: item.time_range || item.time || item.timestamp || "",
+          timestamp_sec: item.timestamp_sec || metadataByFrame.get(item.evidence_frame || item.frame || item.image || "")?.timestamp_sec || "",
+          role: item.role || item.shot_role || "",
+          repeat_of: item.repeat_of || item.duplicate_of || "",
+          sort_time_sec: item.sort_time_sec || item.canonical_time_sec || "",
+          is_repeated_later: Boolean(item.is_repeated_later || item.repeated_later),
+          shot_size: item.shot_size || item.frame_size || item.scene_size || "",
+          scene: item.scene || item.location || "",
+          action: item.action || item.movement || "",
+          audio: item.audio || item.sound || item.bgm || "",
+          composition: item.composition || item.framing || "",
+          style_reference: item.style_reference || item.reference || item.borrowable || "",
+          image: item.evidence_frame || item.frame || item.image || "",
+          };
+        }).sort((a, b) => storyboardSortTime(a) - storyboardSortTime(b))
+          .map((item, index, all) => ({ ...item, original_shot: item.shot, shot: index + 1, group: storyboardGroup(item, all, index) }));
+      }
+
+      function storyboardSortTime(shot) {
+        const fromSortTime = Number(shot.sort_time_sec);
+        if (Number.isFinite(fromSortTime)) return fromSortTime;
+        const fromTimestamp = Number(shot.timestamp_sec);
+        if (Number.isFinite(fromTimestamp)) return fromTimestamp;
+        const raw = String(shot.time_range || "").trim();
+        const match = raw.match(/(\d+(?::\d+)?(?:\.\d+)?)/);
+        if (!match) return Number.POSITIVE_INFINITY;
+        const value = match[1];
+        if (value.includes(":")) {
+          const parts = value.split(":").map(Number);
+          if (parts.length === 2 && parts.every(Number.isFinite)) return parts[0] * 60 + parts[1];
+        }
+        const number = Number(value);
+        return Number.isFinite(number) ? number : Number.POSITIVE_INFINITY;
+      }
+
+      function storyboardDurationSec(shot) {
+        const raw = String(shot.duration_sec || "").trim();
+        const match = raw.match(/\d+(?:\.\d+)?/);
+        const value = match ? Number(match[0]) : NaN;
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      function storyboardFingerprint(text) {
+        return String(text || "")
+          .toLowerCase()
+          .replace(/[^\u4e00-\u9fffa-z0-9]/g, "")
+          .slice(0, 80);
+      }
+
+      function storyboardSimilarity(a, b) {
+        const left = new Set(storyboardFingerprint(a).match(/.{1,2}/g) || []);
+        const right = new Set(storyboardFingerprint(b).match(/.{1,2}/g) || []);
+        if (!left.size || !right.size) return 0;
+        let overlap = 0;
+        left.forEach(token => { if (right.has(token)) overlap += 1; });
+        return overlap / Math.min(left.size, right.size);
+      }
+
+      function storyboardGroup(shot, all, index) {
+        const role = String(shot.role || "").toLowerCase();
+        if (["hook_preview", "preview", "montage", "hook_recap"].includes(role)) return "preview";
+        const time = storyboardSortTime(shot);
+        const duration = storyboardDurationSec(shot);
+        if (!(time <= 5) || !(duration && duration <= 2.1)) return "main";
+        const openingShortCount = all.filter(item => storyboardSortTime(item) <= 5 && storyboardDurationSec(item) && storyboardDurationSec(item) <= 2.1).length;
+        const laterCount = all.filter(item => storyboardSortTime(item) > 5).length;
+        if (openingShortCount >= 3 && laterCount >= 3) return "preview";
+        const currentText = `${shot.visual || ""}${shot.props_scene || ""}${shot.voice_or_subtitle || ""}`;
+        const hasLaterSimilar = all.slice(index + 1).some(other => {
+          const otherTime = storyboardSortTime(other);
+          if (!(otherTime > 5)) return false;
+          const otherText = `${other.visual || ""}${other.props_scene || ""}${other.voice_or_subtitle || ""}`;
+          return storyboardSimilarity(currentText, otherText) >= 0.38;
+        });
+        return hasLaterSimilar || shot.is_repeated_later ? "preview" : "main";
+      }
+
+      function storyboardTimeLabel(shot) {
+        if (shot.time_range) return String(shot.time_range);
+        if (shot.timestamp_sec !== "" && shot.timestamp_sec !== null && shot.timestamp_sec !== undefined) {
+          const value = Number(shot.timestamp_sec);
+          if (Number.isFinite(value)) return `${value.toFixed(2)}s`;
+        }
+        return "";
+      }
+
+      function storyboardTags(shot) {
+        return [
+          shot.shot_size,
+          shot.scene || shot.props_scene,
+          shot.action,
+        ].filter(Boolean).slice(0, 4);
+      }
+
+      function renderStoryboard(data) {
+        const shots = data.storyboard || [];
+        if (!shots.length) return "";
+        const previewShots = shots.filter(shot => shot.group === "preview");
+        const mainShots = shots.filter(shot => shot.group !== "preview").map((shot, index) => ({ ...shot, shot: index + 1 }));
+        const renderGroup = (title, subtitle, items) => items.length ? `
+          <div class="story-group">
+            <div class="story-group-title">${title}<span>${subtitle}</span></div>
+            ${items.map(shot => renderStoryboardShot(shot)).join("")}
+          </div>
+        ` : "";
+        return `
+          <div class="storyboard-list">
+            ${renderGroup("开头快闪", "用于开场钩子，不计入主线编号", previewShots)}
+            ${renderGroup("主线分镜", "按正式叙事顺序排列", mainShots)}
+          </div>
+        `;
+      }
+
+      function renderStoryboardShot(shot) {
+        const tags = storyboardTags(shot);
+        const timeLabel = storyboardTimeLabel(shot);
+        return `
+          <div class="story-shot ${shot.image ? "" : "no-image"}">
+            ${shot.image ? `<img src="${escapeHtml(shot.image)}" alt="镜头 ${escapeHtml(String(shot.shot))}">` : ""}
+            <div>
+              <div class="story-shot-head">
+                <span class="story-shot-no">#${escapeHtml(String(shot.shot))}</span>
+                ${timeLabel ? `<span>${escapeHtml(timeLabel)}</span>` : ""}
+                ${shot.duration_sec ? `<span>${escapeHtml(String(shot.duration_sec))}${String(shot.duration_sec).includes("s") || String(shot.duration_sec).includes("秒") ? "" : "s"}</span>` : ""}
+                ${shot.repeat_of ? `<span>重复：${escapeHtml(String(shot.repeat_of))}</span>` : ""}
+              </div>
+              <h3 class="story-shot-title">${escapeHtml(shot.visual || `镜头 ${shot.shot}`)}</h3>
+              ${tags.length ? `<div class="story-tags">${tags.map(tag => `<span class="story-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+              <div class="story-detail-grid">
+                ${shot.voice_or_subtitle ? `<div class="story-detail"><strong>口播/字幕</strong>${escapeHtml(shot.voice_or_subtitle)}</div>` : ""}
+                ${shot.audio ? `<div class="story-detail"><strong>声音</strong>${escapeHtml(shot.audio)}</div>` : ""}
+                ${shot.composition ? `<div class="story-detail"><strong>构图</strong>${escapeHtml(shot.composition)}</div>` : ""}
+                ${shot.props_scene ? `<div class="story-detail"><strong>场景/道具</strong>${escapeHtml(shot.props_scene)}</div>` : ""}
+              </div>
+              ${shot.style_reference ? `<div class="story-reference"><strong>可借鉴点：</strong>${escapeHtml(shot.style_reference)}</div>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
+      function renderList(items) {
+        const list = Array.isArray(items) ? items : (items ? [items] : []);
+        return list.filter(Boolean).map(item => `<div class="check-row"><span class="check-icon">✓</span><div>${formatListItem(item)}</div></div>`).join("");
+      }
+
+      function formatListItem(item) {
+        if (item === null || item === undefined) return "";
+        if (typeof item !== "object") return escapeHtml(item);
+        if (Array.isArray(item)) return escapeHtml(item.filter(Boolean).join("、"));
+        const title = item.title || item.name || item.stage || item.scene || item.shot || item.time || "";
+        const content = item.content || item.text || item.line || item.desc || item.description || item.script || item.copy || item.method || item.point || item.value || "";
+        const detail = item.reason || item.analysis || item.note || item.timing || item.visual || item.voice_or_subtitle || item.style_reference || "";
+        const parts = [];
+        if (title) parts.push(`<strong>${escapeHtml(title)}</strong>`);
+        if (content) parts.push(escapeHtml(content));
+        if (detail) parts.push(`<span class="muted">${escapeHtml(detail)}</span>`);
+        if (!parts.length) {
+          return escapeHtml(Object.entries(item).map(([key, value]) => `${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`).join("；"));
+        }
+        return parts.join(title && (content || detail) ? "： " : "");
+      }
+
+      function renderStyleImitation(data) {
+        const style = data.styleImitation || {};
+        const profile = style.style_profile || {};
+        const script = style.imitation_script || {};
+        const storyboard = Array.isArray(style.imitation_storyboard) ? style.imitation_storyboard : [];
+        const hasStyle = style.title || style.desc || Object.keys(profile).length || Object.keys(script).length || storyboard.length;
+        if (!hasStyle) return "";
+        return `
+          <section class="panel section" style="margin-top:18px;">
+            <div class="section-head">
+              <h2>内容风格模仿</h2>
+              <span class="tag">结构迁移 / 仿写脚本</span>
+            </div>
+            <div class="report-card field-list">
+              <div class="field"><div class="label">模仿原则</div><div class="value">${escapeHtml(style.desc || "模仿结构、节奏、语气和场景，不复制原句或镜头。")}</div></div>
+              <div class="field"><div class="label">标题公式</div><div class="value">${escapeHtml(listText(profile.title_formula))}</div></div>
+              <div class="field"><div class="label">开头钩子</div><div class="value">${escapeHtml(listText(profile.hook_pattern))}</div></div>
+              <div class="field"><div class="label">镜头节奏</div><div class="value">${escapeHtml(listText(profile.scene_rhythm || profile.reusable_structure))}</div></div>
+              <div class="field"><div class="label">语气规则</div><div class="value">${renderList(profile.tone_rules)}</div></div>
+              <div class="field"><div class="label">不要照搬</div><div class="value">${renderList(profile.do_not_copy)}</div></div>
+            </div>
+            <div class="report-card field-list" style="margin-top:14px;">
+              <div class="field"><div class="label">仿写标题</div><div class="value">${renderList(script.title_options)}</div></div>
+              <div class="field"><div class="label">开头钩子</div><div class="value"><div class="quote-block">${escapeHtml(script.hook || "")}</div></div></div>
+              <div class="field"><div class="label">口播文案</div><div class="value">${renderList(script.voiceover)}</div></div>
+              <div class="field"><div class="label">产品植入点</div><div class="value">${renderList(script.product_insertions)}</div></div>
+              <div class="field"><div class="label">结尾 CTA</div><div class="value"><div class="quote-block">${escapeHtml(script.cta || "")}</div></div></div>
+              <div class="field"><div class="label">合规提醒</div><div class="value">${renderList(style.compliance_notes)}</div></div>
+            </div>
+            ${storyboard.length ? `
+              <div class="frame-grid" style="margin-top:14px;">
+                ${storyboard.map(s => `
+                  <div class="frame text-frame">
+                    <div class="body">
+                      <h4>仿写镜头 ${escapeHtml(String(s.shot || ""))} · ${escapeHtml(s.visual || "")}</h4>
+                      <p><strong>字幕/口播：</strong>${escapeHtml(s.voice_or_subtitle || "")}<br/><strong>道具/场景：</strong>${escapeHtml(s.props_scene || "")}<br/><strong>时长：</strong>${escapeHtml(String(s.duration_sec || ""))}<br/><strong>借鉴点：</strong>${escapeHtml(s.style_reference || "")}</p>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            ` : ""}
+          </section>
+        `;
+      }
+
+      function transcriptDuration(segments) {
+        if (!Array.isArray(segments) || !segments.length) return "";
+        const end = Math.max(...segments.map(seg => Number(seg.end || 0)).filter(Number.isFinite));
+        return end ? `${end.toFixed(1)}s` : "";
+      }
+
+      function renderTranscript(data) {
+        const transcript = data.transcript || {};
+        const segments = Array.isArray(transcript.segments) ? transcript.segments : [];
+        if (transcript.text) {
+          const text = transcript.text.trim();
+          return `
+            <section class="panel section" style="margin-top:18px;">
+              <div class="section-head">
+                <h2>口播转写</h2>
+                <span class="tag">音频 · ${segments.length || 0} 段</span>
+              </div>
+              <div class="transcript-toggle-row">
+                <button class="btn btn-ghost transcript-toggle" type="button" data-transcript-toggle>查看口播转写</button>
+              </div>
+              <div class="transcript-collapsible" data-transcript-content>
+                <div class="transcript-panel">
+                  <div class="transcript-text">${escapeHtml(text)}</div>
+                  <div class="transcript-meta">
+                    <div class="transcript-stat"><div class="k">转写字数</div><div class="v">${escapeHtml(String(text.length))}</div></div>
+                    <div class="transcript-stat"><div class="k">分段数量</div><div class="v">${escapeHtml(String(segments.length || 0))}</div></div>
+                    <div class="transcript-stat"><div class="k">覆盖时长</div><div class="v">${escapeHtml(transcriptDuration(segments) || "-")}</div></div>
+                  </div>
+                </div>
+                ${segments.length ? `
+                  <div class="transcript-segments">
+                    ${segments.slice(0, 24).map((seg) => `
+                      <div class="segment-card">
+                        <div class="segment-time">${escapeHtml(`${Number(seg.start || 0).toFixed(2)}s`)}<br/>${escapeHtml(`${Number(seg.end || 0).toFixed(2)}s`)}</div>
+                        <div class="segment-text">${escapeHtml(seg.text || "")}</div>
+                      </div>
+                    `).join("")}
+                  </div>
+                ` : ""}
+              </div>
+            </section>
+          `;
+        }
+        if (data.transcriptStatus) {
+          return `
+            <section class="panel section" style="margin-top:18px;">
+              <div class="section-head">
+                <h2>口播转写</h2>
+                <span class="tag">音频</span>
+              </div>
+              <div class="hint" style="margin-top:14px;">${escapeHtml(data.transcriptMessage || "未获得可用口播转写。")}</div>
+            </section>
+          `;
+        }
+        return "";
+      }
+
+      function buildResultData(payload) {
+        const analysis = payload.analysis || {};
+        const selected = payload.selected_frames || {};
+        const categories = selected.categories || {};
+        const frames = payload.frames || [];
+        const coverImage = payload.cover_image || categories.cover_title?.frame || frames[0] || "";
+        const topicImage = categories.topic?.frame || frames[1] || coverImage;
+        const productImage = categories.product?.frame || frames[2] || coverImage;
+        const copyImage = categories.copy?.frame || frames[3] || coverImage;
+        const contactSheet = payload.contact_sheet || "";
+        const audio = payload.audio || {};
+        const transcript = audio.transcript || {};
+        const transcriptStatus = audio.transcript_status || "";
+        const transcriptMessage = audio.transcript_message || "";
+
+        return {
+          id: payload.id || DATA.id,
+          sourceUrl: payload.source_url || "",
+          title: normalizeSection(analysis.summary, "视频拆解报告").title || "视频拆解报告",
+          status: "已完成",
+          stats: [
+            { label: "来源链接", value: payload.source_url ? "已提交" : "示例数据", desc: "视频链接已进入分析流程" },
+            { label: "选帧模式", value: selected.mode === "ai" ? "AI" : "规则", desc: "智能选帧结果已写入" },
+            { label: "结果状态", value: "已完成", desc: "分析 JSON 已生成" },
+            { label: "展示方式", value: contactSheet ? "总览图 + 分镜" : "分镜卡片", desc: "页面可直接回看" },
+          ],
+          summary: [
+            { k: "封面&标题", v: normalizeSection(analysis.cover_title, "封面&标题分析").title },
+            { k: "选题方向", v: normalizeSection(analysis.topic, "选题分析").title },
+            { k: "选品核心", v: normalizeSection(analysis.product, "选品分析").title },
+          ],
+          cards: [
+            { image: coverImage, ...normalizeSection(analysis.cover_title, "封面&标题分析") },
+            { image: topicImage, ...normalizeSection(analysis.topic, "选题分析") },
+            { image: productImage, ...normalizeSection(analysis.product, "选品分析") },
+            { image: copyImage, ...normalizeSection(analysis.copy, "文案分析") },
+          ],
+          storyboard: normalizeStoryboard(payload),
+          risk: normalizeSection(analysis.risk, "合规风险提醒"),
+          summaryCard: normalizeSection(analysis.summary, "一句话总结"),
+          styleImitation: analysis.style_imitation || {},
+          contactSheet,
+          audio,
+          transcript,
+          transcriptStatus,
+          transcriptMessage,
+        };
+      }
+
+      function buildResultDataV2(payload) {
+        const data = buildResultData(payload);
+        data.payload = payload;
+        const analysis = payload.analysis || {};
+        const aiVideo = payload.ai_video || {};
+        const analysisStatus = analysis.status || "ok";
+        const isVideoMode = aiVideo.mode === "video";
+        data.status = ["rate_limited", "ai_failed"].includes(analysisStatus) ? "待重试" : "已完成";
+        data.sourceUrl = payload.source_url || "";
+        data.aiVideo = aiVideo;
+        data.feishu = payload.workflow?.feishu || {};
+        data.feishuUrl = data.feishu.doc_url || data.feishu.reference_url || "";
+        data.analysisStatus = analysisStatus;
+        data.aiErrorMessage = analysis.error_message || "";
+        const deliveryScript = data.styleImitation?.imitation_script || {};
+        data.hasDeliverableScript = Array.isArray(deliveryScript.voiceover)
+          ? deliveryScript.voiceover.filter(Boolean).length > 0
+          : Boolean(deliveryScript.voiceover);
+        const modules = ["封面标题", "选题方向", "选品植入", "口播文案"];
+        data.cards = (data.cards || []).map((card, index) => ({
+          ...card,
+          module: modules[index] || card.module || card.title,
+        }));
+        data.stats = [
+          {
+            label: "来源",
+            value: payload.source_url ? "链接分析" : "本地视频",
+            desc: payload.source_url || "使用本地视频文件生成报告",
+          },
+          {
+            label: "分析证据",
+            value: isVideoMode ? "完整视频 + 口播 + OCR" : "关键帧 + 口播 + OCR",
+            desc: isVideoMode ? "AI 直接读取压缩完整视频" : "AI 读取本地选出的代表帧",
+          },
+          {
+            label: "结果状态",
+            value: ["rate_limited", "ai_failed"].includes(analysisStatus) ? "AI 待重试" : "已完成",
+            desc: ["rate_limited", "ai_failed"].includes(analysisStatus) ? "本地数据已保留，可稍后重试 AI" : "分析 JSON 已生成",
+          },
+          {
+            label: "展示方式",
+            value: payload.contact_sheet ? "视频 + 总览图 + 分镜" : "视频 + 分镜",
+            desc: "页面可直接回看证据",
+          },
+        ];
+        return data;
+      }
+
+      function loadingPage(id) {
+        return `
+          ${header()}
+          <div class="wrap">
+            <div class="panel section">
+              <div class="result-head">
+                <div>
+                  <div class="result-id">分析 ID · ${id}</div>
+                  <h1 style="margin:8px 0 0;font-size:30px;line-height:1.15;">正在生成分析报告</h1>
+                </div>
+                <div class="status">分析中</div>
+              </div>
+              <div class="hint" style="margin-top:16px;">正在下载视频、抽帧、选帧并生成拆解结果，完成后会自动显示。</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function errorPage(id, message) {
+        return `
+          ${header()}
+          <div class="wrap">
+            <div class="panel section">
+              <div class="result-head">
+                <div>
+                  <div class="result-id">分析 ID · ${id}</div>
+                  <h1 style="margin:8px 0 0;font-size:30px;line-height:1.15;">未能加载结果</h1>
+                </div>
+                <div class="status" style="background:#fef3f2;color:#dc2626;">失败</div>
+              </div>
+              <div class="hint" style="margin-top:16px;background:#fff1f2;border-left-color:#dc2626;color:#9f1239;">
+                ${escapeHtml(message || "未知错误")}
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" id="backHomeFromError">返回首页</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function resultPageFromPayload(payload) {
+        const data = buildResultDataV2(payload);
+        window.__CURRENT_RESULT_DATA__ = data;
+        const detailedReport = renderDetailedReport(data);
+        const aiErrorPanel = data.aiErrorMessage ? `
+          <section class="panel section" style="margin-top:18px;border-color:rgba(220,38,38,.22);">
+            <div class="section-head">
+              <h2>AI 失败原因</h2>
+              <span class="tag" style="background:#fff1f2;color:#dc2626;">待处理</span>
+            </div>
+            <div class="hint" style="margin-top:0;background:#fff1f2;border-left-color:#dc2626;color:#9f1239;white-space:pre-wrap;word-break:break-word;">${escapeHtml(data.aiErrorMessage)}</div>
+          </section>
+        ` : "";
+        return `
+          ${header()}
+          <div class="wrap">
+            <div class="panel section">
+              <div class="result-head">
+                <div>
+                  <div class="result-id">分析 ID · ${data.id}</div>
+                  <h1 style="margin:8px 0 0;font-size:30px;line-height:1.15;">${escapeHtml(data.title)}</h1>
+                </div>
+                <div class="status">${data.status}</div>
+              </div>
+              <div class="summary" style="margin-top:18px;">
+                ${data.summary.map((i) => `
+                  <div class="box">
+                    <div class="k">${escapeHtml(i.k)}</div>
+                    <div class="v">${escapeHtml(i.v)}</div>
+                  </div>
+                `).join("")}
+              </div>
+              <div class="actions" style="margin-top:16px;">
+                <button class="btn btn-primary" id="openFeishu2" data-id="${escapeHtml(data.id)}" data-url="${escapeHtml(data.feishuUrl || "")}">${data.feishuUrl ? "打开飞书文档" : "写入飞书文档"}</button>
+                <button class="btn btn-ghost" id="backHome">返回输入页</button>
+              </div>
+            </div>
+
+            <div class="stats" style="margin-top:18px;">
+              ${data.stats.map(s => `
+                <div class="stat">
+                  <div class="label">${escapeHtml(s.label)}</div>
+                  <div class="value">${escapeHtml(s.value)}</div>
+                  <div class="desc">${escapeHtml(s.desc)}</div>
+                </div>
+              `).join("")}
+            </div>
+
+            ${data.aiVideo?.path ? `
+              <section class="panel section" style="margin-top:18px;">
+                <div class="section-head">
+                  <h2>视频证据</h2>
+                  <span class="tag">完整视频分析</span>
+                </div>
+                <video class="video-preview" src="${data.aiVideo.path}" controls preload="metadata"></video>
+                <div class="hint" style="margin-top:12px;">AI 分析使用这版压缩完整视频，同时结合本地 Whisper 口播和 OCR 文本。</div>
+              </section>
+            ` : ""}
+
+            ${detailedReport}
+            ${aiErrorPanel}
+
+            <section class="panel section" style="margin-top:18px;">
+              <div class="section-head">
+                <h2>核心拆解</h2>
+                <span class="tag">封面 / 选题 / 选品 / 文案</span>
+              </div>
+              <div class="analysis-grid">
+                ${data.cards.map(card => analysisCard(card)).join("")}
+              </div>
+            </section>
+
+            <div class="grid-2" style="margin-top:18px;">
+              <section class="panel section">
+                <div class="section-head">
+                  <h2>分镜拆解</h2>
+                  <span class="tag">关键镜头</span>
+                </div>
+                ${renderStoryboard(data)}
+              </section>
+
+              <section class="panel section">
+                <div class="section-head">
+                  <h2>合规与总结</h2>
+                  <span class="tag" style="background:#ecfdf3;color:#16a34a;">通过</span>
+                </div>
+                <div class="creator" style="grid-template-columns: 1fr;">
+                  <div>
+                    <h3>${escapeHtml(data.risk.title)}</h3>
+                    <p>${escapeHtml(data.risk.desc)}</p>
+                    <div class="chipset">
+                      ${data.risk.metrics.map(m => `<span class="chip">${escapeHtml(m[0])} · ${escapeHtml(m[1])}</span>`).join("")}
+                    </div>
+                  </div>
+                </div>
+                <div class="creator" style="grid-template-columns: 1fr; margin-top: 12px;">
+                  <div>
+                    <h3>${escapeHtml(data.summaryCard.title)}</h3>
+                    <p>${escapeHtml(data.summaryCard.desc)}</p>
+                    <div class="chipset">
+                      ${data.summaryCard.metrics.map(m => `<span class="chip">${escapeHtml(m[0])} · ${escapeHtml(m[1])}</span>`).join("")}
+                    </div>
+                  </div>
+                </div>
+                ${data.contactSheet ? `<div class="hint" style="margin-top:12px;"><a class="footerlink" href="${data.contactSheet}" target="_blank" rel="noreferrer">查看总览图</a></div>` : ""}
+              </section>
+            </div>
+
+            ${renderTranscript(data)}
+
+            ${renderStyleImitation(data)}
+          </div>
+        `;
+      }
+
+      async function loadResult(id) {
+        app.innerHTML = loadingPage(id);
+        try {
+          const response = await fetch(`/api/result/${id}`, { cache: "no-store" });
+          if (!response.ok) {
+            if (id === DATA.id) {
+              app.innerHTML = resultPage(id);
+              bindCommon();
+              return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const payload = await response.json();
+          if (payload.status === "running") {
+            app.innerHTML = loadingPage(payload.id || id);
+            bindCommon();
+            setTimeout(() => {
+              if (location.pathname.replace(/\/+$/, "") === `/analyze/${id}`) loadResult(id);
+            }, 5000);
+            return;
+          }
+          app.innerHTML = resultPageFromPayload(payload);
+          bindCommon();
+        } catch (error) {
+          if (id === DATA.id) {
+            app.innerHTML = resultPage(id);
+            bindCommon();
+            return;
+          }
+          app.innerHTML = errorPage(id, error.message);
+          bindCommon();
+        }
+      }
+
+      function escapeHtml(str) {
+        str = String(str ?? "");
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function splitBriefList(value) {
+        return String(value || "")
+          .split(/[，,；;\n]/)
+          .map(item => item.trim())
+          .filter(Boolean);
+      }
+
+      function collectBrief() {
+        const get = id => document.getElementById(id)?.value?.trim() || "";
+        const duration = Number(document.getElementById("targetDuration")?.value || 75);
+        return {
+          brand: get("briefBrand"),
+          product: get("briefProduct"),
+          selling_points: splitBriefList(get("briefSellingPoints")),
+          audience: get("briefAudience"),
+          platform: get("briefPlatform"),
+          constraints: splitBriefList(get("briefConstraints")),
+          target_duration_sec: Number.isFinite(duration) ? Math.min(180, Math.max(30, duration)) : 75,
+          imitation_shot_count_mode: "auto",
+        };
+      }
+
+      function hasBriefInput(brief) {
+        return Boolean(
+          brief.brand ||
+          brief.product ||
+          (brief.selling_points && brief.selling_points.length) ||
+          brief.audience ||
+          (brief.constraints && brief.constraints.length)
+        );
+      }
+
+      function collectAnalyzeOptions() {
+        const aiFrameSelect = document.getElementById("aiFrameSelect");
+        const analysisMode = document.querySelector('input[name="analysisMode"]:checked')?.value || "frames";
+        return {
+          frame_select_mode: aiFrameSelect && aiFrameSelect.checked ? "ai" : "heuristic",
+          analysis_mode: analysisMode,
+        };
+      }
+
+      function formatHistoryTime(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+      }
+
+      function renderHistoryItems(items) {
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) {
+          return `<div class="hint" style="margin:0;">暂无历史记录，完成一次分析后会显示在这里。</div>`;
+        }
+        return list.map(item => {
+          const brief = item.brief || {};
+          const isRunning = item.status === "running";
+          const statusText = isRunning ? "正在分析中" : item.status === "rate_limited" ? "待重试" : "已完成";
+          const meta = [
+            formatHistoryTime(item.created_at),
+            brief.brand || brief.product ? `${brief.brand || ""}${brief.brand && brief.product ? " · " : ""}${brief.product || ""}` : "",
+            statusText,
+          ].filter(Boolean).join(" / ");
+          return `
+            <button class="history-item ${isRunning ? "running" : ""}" data-history-id="${escapeHtml(item.id || "")}">
+              ${item.cover_image ? `<img class="history-thumb" src="${escapeHtml(item.cover_image)}" alt="" />` : `<div class="history-thumb pending">${isRunning ? "..." : ""}</div>`}
+              <div>
+                <div class="history-title">${escapeHtml(item.title || "未命名分析")}</div>
+                <div class="history-meta">${escapeHtml(meta || item.id || "")}</div>
+                <div class="history-desc">${escapeHtml(item.desc || item.source_url || "")}</div>
+              </div>
+            </button>
+          `;
+        }).join("");
+      }
+
+      async function loadHistory() {
+        const target = document.getElementById("historyList");
+        if (!target) return;
+        try {
+          const response = await fetch("/api/history", { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const payload = await response.json();
+          target.innerHTML = renderHistoryItems(payload.items || []);
+          target.querySelectorAll("[data-history-id]").forEach((button) => {
+            button.onclick = () => {
+              const id = button.dataset.historyId;
+              if (id) navigate(`/analyze/${id}`);
+            };
+          });
+        } catch (error) {
+          target.innerHTML = `<div class="hint" style="margin:0;">历史记录读取失败：${escapeHtml(error.message || "unknown")}</div>`;
+        }
+      }
+
+      function bindHistoryToggle() {
+        const toggle = document.getElementById("historyToggle");
+        const popover = document.getElementById("historyPopover");
+        if (!toggle || !popover) return;
+        toggle.onclick = (event) => {
+          event.stopPropagation();
+          popover.classList.toggle("open");
+          if (popover.classList.contains("open")) loadHistory();
+        };
+        popover.onclick = (event) => event.stopPropagation();
+        if (!historyOutsideClickBound) {
+          document.addEventListener("click", () => {
+            document.querySelectorAll(".history-popover.open").forEach(item => item.classList.remove("open"));
+          });
+          historyOutsideClickBound = true;
+        }
+      }
+
+      function bindCommon() {
+        bindHistoryToggle();
+        loadHistory();
+        const searchInput = document.getElementById("searchInput");
+        const searchBtn = document.getElementById("searchBtn");
+        if (searchInput && searchBtn) {
+          const run = async () => {
+            const v = searchInput.value.trim();
+            if (!v) return navigate(`/analyze/${DATA.id}`);
+            const brief = collectBrief();
+            if (!document.getElementById("briefBrand")) {
+              alert("请先返回首页填写商单 Brief，再粘贴参考视频链接分析。");
+              navigate("/analyze");
+              return;
+            }
+            if (!hasBriefInput(brief)) {
+              alert("请先填写商单 Brief，至少填写品牌、产品或主要卖点。");
+              return;
+            }
+            const options = collectAnalyzeOptions();
+            app.innerHTML = loadingPage("new");
+            try {
+              const response = await fetch("/api/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: v, brief, ...options }),
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.error || "analysis_failed");
+              navigate(`/analyze/${payload.id}`);
+            } catch (error) {
+              app.innerHTML = errorPage("new", error.message || "analysis_failed");
+              bindCommon();
+            }
+          };
+          searchBtn.onclick = run;
+          searchInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") run();
+          });
+        }
+        const goDemo = document.getElementById("goDemo");
+        if (goDemo) goDemo.onclick = () => navigate(`/analyze/${DATA.id}`);
+        const openFeishu = document.getElementById("openFeishu");
+        if (openFeishu) openFeishu.onclick = () => window.open(DATA.feishuUrl, "_blank");
+        const openFeishu2 = document.getElementById("openFeishu2");
+        if (openFeishu2) {
+          const currentResult = window.__CURRENT_RESULT_DATA__ || {};
+          const hasExistingFeishu = Boolean(openFeishu2.dataset.url || currentResult.feishuUrl);
+          const canWriteFeishu = hasExistingFeishu || Boolean(currentResult.hasDeliverableScript);
+          if (openFeishu2.dataset.id && !canWriteFeishu) {
+            openFeishu2.disabled = true;
+            openFeishu2.textContent = "脚本未生成，暂不能写入飞书";
+            openFeishu2.title = "请先点击“重新生成 AI 分析”，生成口播脚本后再写入飞书。";
+          }
+          openFeishu2.onclick = async () => {
+            if (openFeishu2.disabled) {
+              alert("脚本还没生成，先点击“重新生成 AI 分析”，生成口播脚本后再写入飞书。");
+              return;
+            }
+            const existingUrl = openFeishu2.dataset.url || "";
+            if (existingUrl) {
+              window.open(existingUrl, "_blank");
+              return;
+            }
+            const id = openFeishu2.dataset.id;
+            if (!id) {
+              window.open(DATA.feishuUrl, "_blank");
+              return;
+            }
+            openFeishu2.disabled = true;
+            openFeishu2.textContent = "正在写入飞书...";
+            try {
+              const response = await fetch("/api/write-feishu", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id }),
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.error || "write_feishu_failed");
+              openFeishu2.dataset.url = payload.doc_url || payload.reference_url || "";
+              openFeishu2.textContent = "打开飞书文档";
+              if (payload.doc_url || payload.reference_url) window.open(payload.doc_url || payload.reference_url, "_blank");
+            } catch (error) {
+              openFeishu2.disabled = false;
+              openFeishu2.textContent = "写入飞书文档";
+              alert(error.message || "write_feishu_failed");
+            }
+          };
+        }
+        if (openFeishu2?.dataset?.id && !document.getElementById("retryAnalysis")) {
+          const retryButton = document.createElement("button");
+          retryButton.className = "btn btn-ghost";
+          retryButton.id = "retryAnalysis";
+          retryButton.dataset.id = openFeishu2.dataset.id;
+          retryButton.textContent = "重新生成 AI 分析";
+          openFeishu2.insertAdjacentElement("afterend", retryButton);
+        }
+        const backHome = document.getElementById("backHome");
+        if (backHome) backHome.onclick = () => navigate("/analyze");
+        const retryAnalysis = document.getElementById("retryAnalysis");
+        if (retryAnalysis) {
+          retryAnalysis.onclick = async () => {
+            const id = retryAnalysis.dataset.id;
+            if (!id) return;
+            retryAnalysis.disabled = true;
+            retryAnalysis.textContent = "正在重新生成...";
+            try {
+              const response = await fetch("/api/retry-analysis", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, analysis_mode: "frames" }),
+              });
+              const payload = await response.json();
+              if (!response.ok) throw new Error(payload.error || "retry_failed");
+              navigate(`/analyze/${payload.id}`);
+            } catch (error) {
+              retryAnalysis.disabled = false;
+              retryAnalysis.textContent = "重新生成 AI 分析";
+              alert(error.message || "retry_failed");
+            }
+          };
+        }
+
+        document.querySelectorAll("[data-tabs]").forEach((wrap) => {
+          const tabs = wrap.querySelectorAll(".tab");
+          tabs.forEach((tab) => {
+            tab.onclick = () => {
+              const target = tab.dataset.tab;
+              tabs.forEach(t => t.classList.toggle("active", t === tab));
+              wrap.parentElement.querySelectorAll(".tab-panel").forEach(panel => {
+                panel.classList.toggle("active", panel.id === `tab-${target}`);
+              });
+            };
+          });
+        });
+
+        document.querySelectorAll("[data-transcript-toggle]").forEach((button) => {
+          button.onclick = () => {
+            const section = button.closest("section");
+            const content = section ? section.querySelector("[data-transcript-content]") : null;
+            if (!content) return;
+            const isOpen = content.classList.toggle("open");
+            button.textContent = isOpen ? "收起口播转写" : "查看口播转写";
+          };
+        });
+      }
+
+      function render() {
+        const mode = pathMode();
+        if (mode === "result") {
+          const id = location.pathname.split("/").filter(Boolean).pop();
+          loadResult(id || DATA.id);
+        } else {
+          app.innerHTML = homePage();
+          bindCommon();
+        }
+      }
+
+      window.addEventListener("popstate", render);
+      async function hydrateFrames() {
+        try {
+          const response = await fetch("/references/frames/analysis.json", { cache: "no-store" });
+          if (!response.ok) return;
+          const manifest = await response.json();
+          if (!manifest.frames || !manifest.frames.length) return;
+          const frames = manifest.frames;
+          DATA.sourceLink = manifest.source_url || DATA.sourceLink;
+          const selected = manifest.selected_frames || {};
+          const categories = selected.categories || {};
+          DATA.videoAnalysis.coverTitle.image = manifest.cover_image || categories.cover_title?.frame || frames[0] || DATA.videoAnalysis.coverTitle.image;
+          DATA.videoAnalysis.topic.image = categories.topic?.frame || frames[1] || DATA.videoAnalysis.topic.image;
+          DATA.videoAnalysis.product.image = categories.product?.frame || frames[2] || DATA.videoAnalysis.product.image;
+          DATA.videoAnalysis.copy.image = categories.copy?.frame || frames[3] || DATA.videoAnalysis.copy.image;
+          const storyboardFrames = selected.storyboard && selected.storyboard.length ? selected.storyboard : frames;
+          DATA.storyboard = DATA.storyboard.map((shot, index) => {
+            const next = [...shot];
+            next[5] = storyboardFrames[index % storyboardFrames.length];
+            return next;
+          });
+        } catch (error) {
+          console.warn("No extracted frame manifest loaded.", error);
+        }
+      }
+
+      hydrateFrames().finally(render);
+    </script>
+  </body>
+</html>

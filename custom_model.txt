@@ -1,0 +1,12 @@
+# OpenAI 兼容模型配置。
+# 这个文件用于说明本项目支持的 OpenAI 兼容模型配置格式。
+# 提交仓库时请只保留占位值，不要填写真实 API Key。
+# 我测试用的是 Qwen3-VL-Plus，请使用具有视频视觉识别功能的大模型。
+
+CUSTOM_BASE_URL=
+CUSTOM_API_KEY=
+CUSTOM_MODEL=
+
+# 可选项：只有当模型服务支持 OpenAI 的 response_format 参数时才开启。
+# 可选值：json、json_object、true、false
+CUSTOM_RESPONSE_FORMAT=false
